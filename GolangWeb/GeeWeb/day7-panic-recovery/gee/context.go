@@ -18,8 +18,13 @@ type Context struct {
 	// 请求中的信息
 	Path   string
 	Method string
+	Params map[string]string
 	// 响应中的信息
 	StatusCode int
+	// 中间件
+	handlers []HandlerFunc
+	index    int
+	engine *Engine
 }
 
 func newContext(w http.ResponseWriter, req *http.Request) *Context {
@@ -28,7 +33,29 @@ func newContext(w http.ResponseWriter, req *http.Request) *Context {
 		Req:    req,
 		Path:   req.URL.Path,
 		Method: req.Method,
+		index:  -1,
 	}
+}
+
+// Next 表示等待执行其他的中间件或用户的 Handler
+func (c *Context) Next() {
+	c.index++
+	s := len(c.handlers)
+	for ; c.index < s; c.index++ {
+		c.handlers[c.index](c)
+	}
+}
+
+// Fail 调用中间件失败
+func (c *Context) Fail(code int, err string) {
+	c.index = len(c.handlers)
+	c.JSON(code, H{"message": err})
+}
+
+// Param 根据 key 查询路由的参数
+func (c *Context) Param(key string) string {
+	value, _ := c.Params[key]
+	return value
 }
 
 // PostForm 对 POST 请求，根据 key 返回 value
@@ -76,8 +103,10 @@ func (c *Context) Data(code int, data []byte) {
 }
 
 // HTML 构造 HTML 格式响应的方法
-func (c *Context) HTML(code int, html string) {
+func (c *Context) HTML(code int, name string, data interface{}) {
 	c.SetHeader("Content-Type", "text/html")
 	c.Status(code)
-	c.Writer.Write([]byte(html))
+	if err := c.engine.htmlTemplates.ExecuteTemplate(c.Writer, name, data); err != nil {
+		c.Fail(500, err.Error())
+	}
 }

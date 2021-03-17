@@ -14,7 +14,7 @@ type Engine struct {
 	router map[string]HandlerFunc
 }
 
-// New 是结构体 Engine 的构造函数 
+// New 是结构体 Engine 的构造函数
 func New() *Engine {
 	return &Engine{router: make(map[string]HandlerFunc)}
 }
@@ -49,5 +49,3 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "404 NOT FOUNT: %s\n", req.URL)
 	}
 }
-
-
